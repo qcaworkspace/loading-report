@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>แจ้งปัญหาการโหลด</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --font: 'IBM Plex Sans Thai', 'IBM Plex Sans', sans-serif;
+    --header-bg: #eef2f7; --header-text: #2d3a4a;
+    --row-bg: #ffffff; --row-alt: #fafbfc;
+    --border: #dde3ec; --border-focus: #4a7dca;
+    --text-primary: #1e2b3a; --text-secondary: #5a6a7e; --text-muted: #8a9bae;
+    --accent: #4a7dca; --accent-light: #e8f0fc;
+    --btn-add: #4a7dca; --btn-add-hover: #3a6db8; --btn-del: #e05252;
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.07); --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+    --radius: 8px; --radius-sm: 4px;
+  }
+  body { font-family: var(--font); background: #f4f6fb; color: var(--text-primary); min-height: 100vh; }
+
+  /* TOPBAR — tabs inside */
+  .topbar { background: #2d3a4a; padding: 0 20px; display: flex; align-items: stretch; gap: 0; position: sticky; top: 0; z-index: 200; box-shadow: var(--shadow-md); }
+  .topbar-left { display: flex; align-items: center; gap: 10px; padding: 8px 16px 8px 0; }
+  .topbar-icon { width: 26px; height: 26px; background: var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .topbar-icon svg { width: 15px; height: 15px; fill: #fff; }
+  .topbar h1 { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; }
+  .topbar-tabs { display: flex; align-items: flex-end; gap: 3px; flex: 1; padding-top: 6px; }
+  .tab-btn { padding: 7px 22px 9px; border: none; background: rgba(255,255,255,0.1); color: #a0b0c8; font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; border-radius: 6px 6px 0 0; transition: all 0.15s; white-space: nowrap; }
+  .tab-btn.active { background: #f4f6fb; color: var(--accent); font-weight: 600; }
+  .tab-btn:not(.active):hover { background: rgba(255,255,255,0.2); color: #dde3ec; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; padding: 8px 0 8px 12px; }
+
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #6db86d; flex-shrink: 0; transition: background 0.3s; }
+  .sync-dot.syncing { background: #f0a832; animation: pulse 0.8s infinite alternate; }
+  .sync-dot.error { background: #e05252; }
+  @keyframes pulse { to { opacity: 0.4; } }
+  .sync-label { font-size: 11px; color: #a0b0c8; white-space: nowrap; }
+
+  /* TOOLBAR + SORT — same row */
+  .top-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .btn-add { display: flex; align-items: center; gap: 5px; background: var(--btn-add); color: #fff; border: none; padding: 6px 14px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.15s; white-space: nowrap; box-shadow: var(--shadow-sm); flex-shrink: 0; }
+  .btn-add:hover { background: var(--btn-add-hover); }
+  .btn-add svg { width: 14px; height: 14px; fill: #fff; }
+  .filter-badge { font-size: 11px; color: var(--text-secondary); background: var(--accent-light); border: 1px solid #c4d5f0; border-radius: 20px; padding: 3px 10px; display: flex; align-items: center; gap: 5px; }
+  .filter-badge button { border: none; background: none; cursor: pointer; color: var(--accent); font-size: 13px; font-weight: 600; padding: 0; line-height: 1; }
+  .row-count { font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+
+  /* divider between btn and sort pills */
+  .sort-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  .sort-label { font-size: 11px; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+  .sort-btn { padding: 3px 9px; font-size: 11px; font-family: var(--font); font-weight: 500; color: var(--text-secondary); background: #fff; border: 1px solid var(--border); border-radius: 20px; cursor: pointer; transition: all 0.12s; white-space: nowrap; }
+  .sort-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .sort-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .sort-clear { padding: 3px 9px; font-size: 11px; font-family: var(--font); color: var(--btn-del); background: #fff3f3; border: 1px solid #f5c0c0; border-radius: 20px; cursor: pointer; }
+
+  /* TABLE — sticky header + visible scrollbar */
+  .table-outer { border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border); overflow: hidden; }
+  .table-wrap {
+    overflow-x: auto;
+    overflow-y: auto;
+    background: #fff;
+    max-height: calc(100vh - 160px);
+  }
+  /* Always-visible scrollbar */
+  .table-wrap::-webkit-scrollbar { height: 10px; width: 10px; }
+  .table-wrap::-webkit-scrollbar-track { background: #d8dfe8; border-radius: 4px; }
+  .table-wrap::-webkit-scrollbar-thumb { background: #8a9bae; border-radius: 4px; border: 2px solid #d8dfe8; }
+  .table-wrap::-webkit-scrollbar-thumb:hover { background: #5a6a7e; }
+  .table-wrap::-webkit-scrollbar-corner { background: #d8dfe8; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 700px; }
+  thead tr { background: var(--header-bg); }
+  /* Freeze header */
+  thead th { position: sticky; top: 0; z-index: 4; background: var(--header-bg); }
+  th { padding: 0; border-right: 1px solid var(--border); border-bottom: 2px solid #c8d4e8; white-space: nowrap; }
+  th:last-child { border-right: none; }
+  .th-inner { display: flex; align-items: center; justify-content: center; padding: 8px 6px 8px 10px; gap: 2px; min-height: 36px; }
+  .th-label { font-size: 12px; font-weight: 600; color: var(--header-text); white-space: nowrap; flex: 1; text-align: center; }
+  .th-filter-btn { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 3px; cursor: pointer; background: none; color: var(--text-muted); font-size: 10px; transition: all 0.12s; padding: 0; }
+  .th-filter-btn:hover { background: #dce6f5; border-color: var(--border); color: var(--accent); }
+  .th-filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  tbody tr { background: var(--row-bg); }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
+  td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 0; vertical-align: top; text-align: center; position: relative; }
+  td:last-child { border-right: none; }
+  td::after { content: ''; position: absolute; inset: 0; border: 1px solid transparent; pointer-events: none; transition: border-color 0.1s; z-index: 1; }
+  td:hover::after { border-color: #a0b8e0; }
+  td:focus-within::after { border-color: var(--border-focus); }
+  .td-left { text-align: left; }
+  .no-data { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; }
+
+  /* COL WIDTHS */
+  .col-no    { min-width: 44px; width: 44px; position: sticky; left: 0; z-index: 3; }
+  thead .col-no { z-index: 5; }
+  .col-date  { min-width: 116px; width: 116px; }
+  .col-place { min-width: 150px; }
+  .col-inv   { min-width: 110px; }
+  .col-cust  { min-width: 140px; }
+  .col-prod  { min-width: 130px; }
+  .col-lot   { min-width: 90px; }
+  .col-batch { min-width: 100px; }
+  .col-prob  { min-width: 320px; }
+  .col-fix   { min-width: 200px; }
+  .col-note  { min-width: 140px; }
+  .col-photo { min-width: 396px; width: 396px; }
+  .col-act   { min-width: 44px; width: 44px; }
+
+  /* col-no sticky bg */
+  tbody td.col-no { background: var(--row-bg); }
+  tbody tr:nth-child(even) td.col-no { background: var(--row-alt); }
+
+  /* CELLS */
+  .date-display { font-size: 13px; padding: 8px 10px; display: block; width: 100%; text-align: center; cursor: pointer; }
+  .date-display.empty { color: var(--text-muted); }
+  .dropdown-display { padding: 8px 10px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; }
+  .dropdown-display.empty { color: var(--text-muted); }
+  .dropdown-display svg { width: 12px; height: 12px; opacity: 0.5; }
+
+  /* text-cell: wrap text, grow with content, no scroll */
+  .text-cell { width: 100%; min-height: 36px; padding: 7px 8px; font-family: var(--font); font-size: 13px; color: var(--text-primary); border: none; background: transparent; resize: none; outline: none; box-shadow: none; line-height: 1.45; overflow: hidden; display: block; text-align: center; box-sizing: border-box; -webkit-appearance: none; }
+  .td-left .text-cell { text-align: left; }
+
+  /* autocomplete dropdown */
+  .autocomplete-list { position: fixed; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); z-index: 9997; max-height: 180px; overflow-y: auto; display: none; min-width: 160px; }
+  .autocomplete-list.visible { display: block; }
+  .autocomplete-item { padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--text-primary); transition: background 0.1s; white-space: nowrap; }
+  .autocomplete-item:hover { background: var(--accent-light); color: var(--accent); }
+  .autocomplete-item mark { background: #fff3cd; color: inherit; font-weight: 600; border-radius: 2px; }
+  .btn-del-row { background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; padding: 6px 8px; border-radius: 3px; transition: color 0.12s, background 0.12s; line-height: 1; }
+  .btn-del-row:hover { color: var(--btn-del); background: #fdf0f0; }
+
+  /* PHOTO — 120px, 3 per row */
+  .photo-cell { padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .photo-thumbs { display: grid; grid-template-columns: 120px 120px 120px; gap: 5px; justify-content: center; }
+  .photo-thumb-wrap { position: relative; width: 120px; height: 120px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; }
+  .photo-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-thumb-del { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.12s; }
+  .photo-thumb-wrap:hover .photo-thumb-del { opacity: 1; }
+  .photo-upload-btn { display: flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 11px; font-family: var(--font); color: var(--accent); background: var(--accent-light); border: 1px dashed #a0bce8; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap; }
+  .photo-upload-btn:hover { background: #daeafa; }
+  .photo-upload-input { display: none; }
+
+  /* POPUPS */
+  .filter-panel { position: fixed; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); z-index: 9998; padding: 10px; min-width: 200px; display: none; }
+  .filter-panel.visible { display: block; }
+  .filter-panel-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+  .filter-panel-input { width: 100%; padding: 6px 8px; font-family: var(--font); font-size: 12px; border: 1px solid var(--border); border-radius: 3px; background: #fff; color: var(--text-primary); outline: none; margin-bottom: 6px; }
+  .filter-panel-input:focus { border-color: var(--border-focus); }
+  .filter-values { max-height: 160px; overflow-y: auto; margin-bottom: 6px; border: 1px solid var(--border); border-radius: 3px; }
+  .filter-value-item { padding: 7px 10px; font-size: 12px; cursor: pointer; color: var(--text-primary); transition: background 0.1s; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #f0f2f6; }
+  .filter-value-item:last-child { border-bottom: none; }
+  .filter-value-item:hover { background: var(--accent-light); }
+  .filter-value-item.selected { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+  .filter-value-item input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; flex-shrink: 0; }
+  .filter-panel-actions { display: flex; gap: 6px; }
+  .filter-panel-ok { flex: 1; padding: 5px; background: var(--accent); color: #fff; border: none; border-radius: 3px; font-family: var(--font); font-size: 12px; cursor: pointer; font-weight: 500; }
+  .filter-panel-clear { padding: 5px 10px; background: none; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 3px; font-family: var(--font); font-size: 12px; cursor: pointer; }
+  .date-picker-popup { position: fixed; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); z-index: 9999; padding: 12px; min-width: 240px; display: none; }
+  .date-picker-popup.visible { display: block; }
+  .dp-header { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .dp-select { flex: 1; padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 12px; background: #fff; cursor: pointer; outline: none; }
+  .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .dp-day-label { text-align: center; font-size: 10px; color: var(--text-muted); font-weight: 500; padding: 2px 0; }
+  .dp-day { text-align: center; font-size: 12px; padding: 5px 2px; border-radius: 3px; cursor: pointer; transition: background 0.1s; }
+  .dp-day:hover { background: var(--accent-light); color: var(--accent); }
+  .dp-day.today { font-weight: 600; color: var(--accent); }
+  .dp-day.selected { background: var(--accent); color: #fff !important; font-weight: 600; }
+  .dp-day.empty { pointer-events: none; }
+  .dp-footer { margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+  .dp-input { flex: 1; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 12px; outline: none; }
+  .dp-input:focus { border-color: var(--border-focus); }
+  .dp-ok { padding: 5px 12px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-family: var(--font); font-size: 12px; cursor: pointer; font-weight: 500; }
+  .dropdown-popup { position: fixed; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); z-index: 9999; min-width: 160px; overflow: hidden; display: none; }
+  .dropdown-popup.visible { display: block; }
+  .dropdown-option { padding: 9px 14px; font-size: 13px; cursor: pointer; color: var(--text-primary); transition: background 0.1s; white-space: nowrap; }
+  .dropdown-option:hover { background: var(--accent-light); }
+  .dropdown-option.selected { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+  .dropdown-option.custom-option { color: var(--text-secondary); font-style: italic; border-top: 1px solid var(--border); }
+  .dropdown-custom-input { display: none; padding: 6px 10px; border-top: 1px solid var(--border); }
+  .dropdown-custom-input.visible { display: flex; gap: 6px; align-items: center; }
+  .dropdown-custom-field { flex: 1; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 12px; outline: none; }
+  .dropdown-custom-ok { padding: 5px 10px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-family: var(--font); font-size: 12px; cursor: pointer; }
+  .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 10000; align-items: center; justify-content: center; }
+  .lightbox.visible { display: flex; }
+  .lightbox img { max-width: 92vw; max-height: 88vh; border-radius: var(--radius); }
+  .lightbox-close { position: fixed; top: 16px; right: 20px; color: #fff; font-size: 26px; cursor: pointer; background: rgba(0,0,0,0.4); border: none; border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #2d3a4a; color: #fff; padding: 9px 20px; border-radius: 20px; font-size: 13px; font-family: var(--font); box-shadow: var(--shadow-md); z-index: 20000; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .loading-bar { position: fixed; top: 0; left: 0; width: 0; height: 3px; background: var(--accent); z-index: 30000; transition: width 0.3s; }
+
+  /* SETUP SCREEN */
+  .setup-screen { display: none; position: fixed; inset: 0; background: rgba(244,246,251,0.97); z-index: 25000; align-items: center; justify-content: center; padding: 24px; }
+  .setup-screen.visible { display: flex; }
+  .setup-box { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 28px 32px; max-width: 520px; width: 100%; }
+  .setup-box h2 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .setup-box p { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
+  .setup-field-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block; }
+  .setup-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; outline: none; margin-bottom: 10px; color: var(--text-primary); }
+  .setup-input:focus { border-color: var(--border-focus); }
+  .setup-btn { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-family: var(--font); font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+  .setup-btn:hover { background: var(--btn-add-hover); }
+  .setup-steps { font-size: 12px; color: var(--text-muted); line-height: 2; background: #f8fafd; border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px; border: 1px solid var(--border); }
+  .setup-steps b { color: var(--text-secondary); }
+  .setup-steps code { background: #e8f0fc; color: #2d5da1; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loading-bar"></div>
+
+<!-- Setup Screen -->
+<div class="setup-screen" id="setup-screen">
+  <div class="setup-box">
+    <h2>🔥 เชื่อมต่อ Firebase</h2>
+    <p>กรอก Firebase config จาก Project ของคุณ — ทำครั้งเดียว ใช้ได้ทุกเครื่อง</p>
+    <div class="setup-steps">
+      <b>วิธีขอ Config (ทำครั้งเดียว):</b><br>
+      1. ไปที่ <code>console.firebase.google.com</code> → สร้าง Project ใหม่<br>
+      2. กด <b>Add app</b> → เลือก <b>Web (&lt;/&gt;)</b> → ตั้งชื่อ<br>
+      3. Copy ค่าใน <code>firebaseConfig</code> มากรอกด้านล่าง<br>
+      4. ไปที่ <b>Firestore Database</b> → <b>Create database</b> → เลือก <b>Start in test mode</b>
+    </div>
+    <label class="setup-field-label">API Key</label>
+    <input class="setup-input" id="cfg-apiKey" placeholder="AIzaSy...">
+    <label class="setup-field-label">Auth Domain</label>
+    <input class="setup-input" id="cfg-authDomain" placeholder="your-project.firebaseapp.com">
+    <label class="setup-field-label">Project ID</label>
+    <input class="setup-input" id="cfg-projectId" placeholder="your-project-id">
+    <label class="setup-field-label">Messaging Sender ID</label>
+    <input class="setup-input" id="cfg-messagingSenderId" placeholder="123456789">
+    <label class="setup-field-label">App ID</label>
+    <input class="setup-input" id="cfg-appId" placeholder="1:123456789:web:abc123">
+    <button class="setup-btn" onclick="saveFirebaseConfig()">บันทึกและเชื่อมต่อ</button>
+  </div>
+</div>
+
+<!-- Main App -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg></div>
+    <h1>แจ้งปัญหาการโหลด</h1>
+  </div>
+  <div class="topbar-tabs">
+    <button class="tab-btn active" onclick="switchTab('domestic')">Domestic</button>
+    <button class="tab-btn" onclick="switchTab('export')">Export</button>
+  </div>
+  <div class="topbar-right">
+    <div class="sync-dot" id="sync-dot"></div>
+    <div class="sync-label" id="sync-label">กำลังเชื่อมต่อ...</div>
+    <!-- ซ่อน setup button — กด title 5 ครั้งเพื่อเปิด -->
+    <span onclick="handleSetupTap()" style="cursor:default;padding:4px 8px;color:transparent;font-size:18px;user-select:none;" title="">⚙️</span>
+  </div>
+</div>
+
+<div class="main-content">
+  <!-- Toolbar + Sort — same row -->
+  <div class="top-bar-row">
+    <button class="btn-add" onclick="addRow()">
+      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      เพิ่มแถว
+    </button>
+    <button onclick="undo()" title="Undo (Ctrl+Z)" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 10px;cursor:pointer;font-size:14px;color:var(--text-secondary);font-family:var(--font);">↩</button>
+    <button onclick="redo()" title="Redo (Ctrl+Y)" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 10px;cursor:pointer;font-size:14px;color:var(--text-secondary);font-family:var(--font);">↪</button>
+    <div class="sort-divider"></div>
+    <div id="sort-bar" style="display:contents;"></div>
+    <div id="filter-badge" class="filter-badge" style="display:none;">
+      <span id="filter-badge-text"></span>
+      <button onclick="clearAllFilters()">✕</button>
+    </div>
+    <div class="row-count" id="row-count"></div>
+  </div>
+
+  <div class="table-outer">
+    <div class="table-wrap"><div id="table-container"></div></div>
+  </div>
+</div>
+
+<!-- Popups -->
+<div class="filter-panel" id="filter-panel">
+  <div class="filter-panel-title" id="filter-panel-title">ค้นหา</div>
+  <input class="filter-panel-input" id="filter-panel-input" placeholder="พิมพ์เพื่อค้นหา...">
+  <div class="filter-values" id="filter-values"></div>
+  <div class="filter-panel-actions">
+    <button class="filter-panel-ok" onclick="fpApply()">ตกลง</button>
+    <button class="filter-panel-clear" onclick="fpClear()">ล้าง</button>
+  </div>
+</div>
+<div class="autocomplete-list" id="autocomplete-list"></div>
+<div class="date-picker-popup" id="date-picker-popup">
+  <div class="dp-header">
+    <select class="dp-select" id="dp-month"></select>
+    <select class="dp-select" id="dp-year" style="max-width:70px;"></select>
+  </div>
+  <div class="dp-grid" id="dp-grid"></div>
+  <div class="dp-footer">
+    <input class="dp-input" id="dp-manual" placeholder="DD/MM/YYYY" maxlength="10">
+    <button class="dp-ok" onclick="dpConfirm()">ตกลง</button>
+  </div>
+</div>
+<div class="dropdown-popup" id="dropdown-popup">
+  <div id="dropdown-options"></div>
+  <div class="dropdown-custom-input" id="dropdown-custom-area">
+    <input class="dropdown-custom-field" id="dropdown-custom-field" placeholder="พิมพ์รายการใหม่...">
+    <button class="dropdown-custom-ok" onclick="ddCustomConfirm()">ตกลง</button>
+  </div>
+</div>
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp }                          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, doc, addDoc,
+         updateDoc, deleteDoc, onSnapshot,
+         serverTimestamp, query, orderBy }        from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ══════════════════════════════════════════════
+//  CONFIG — บันทึกใน localStorage (ทำครั้งเดียว)
+// ══════════════════════════════════════════════
+const CFG_KEY = 'firebase_cfg_v1';
+
+function loadCfg() {
+  try { return JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); } catch { return null; }
+}
+
+window.saveFirebaseConfig = function() {
+  const cfg = {
+    apiKey:            document.getElementById('cfg-apiKey').value.trim(),
+    authDomain:        document.getElementById('cfg-authDomain').value.trim(),
+    projectId:         document.getElementById('cfg-projectId').value.trim(),
+    messagingSenderId: document.getElementById('cfg-messagingSenderId').value.trim(),
+    appId:             document.getElementById('cfg-appId').value.trim(),
+  };
+  if(!cfg.apiKey || !cfg.projectId) { showToast('กรุณากรอก API Key และ Project ID'); return; }
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  document.getElementById('setup-screen').classList.remove('visible');
+  initFirebase(cfg);
+};
+
+window.showSetup = function() {
+  const cfg = loadCfg() || {};
+  ['apiKey','authDomain','projectId','messagingSenderId','appId'].forEach(k => {
+    const el = document.getElementById('cfg-' + k);
+    if(el) el.value = cfg[k] || '';
+  });
+  document.getElementById('setup-screen').classList.add('visible');
+};
+
+// ══════════════════════════════════════════════
+//  FIREBASE INIT
+// ══════════════════════════════════════════════
+let db;
+let unsubscribers = {};
+
+function initFirebase(cfg) {
+  try {
+    const app = initializeApp(cfg);
+    db      = getFirestore(app);
+    setSyncStatus('ok', 'เชื่อมต่อแล้ว');
+    subscribeTab('domestic');
+    subscribeTab('export');
+  } catch(e) {
+    setSyncStatus('error', 'Config ผิดพลาด');
+    showToast('❌ Firebase config ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  REALTIME LISTENER — Firestore onSnapshot
+// ══════════════════════════════════════════════
+function subscribeTab(tab) {
+  if(unsubscribers[tab]) unsubscribers[tab]();
+  const q = query(collection(db, tab), orderBy('createdAt', 'asc'));
+  unsubscribers[tab] = onSnapshot(q, (snapshot) => {
+    data[tab] = snapshot.docs.map(d => ({ id: d.id, ...d.data(), photos: d.data().photos || [] }));
+    if(tab === currentTab) { setSyncStatus('ok', 'อัปเดตแล้ว'); render(); }
+  }, (err) => {
+    setSyncStatus('error', 'sync error');
+    showToast('❌ ' + err.message);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  FIRESTORE CRUD
+// ══════════════════════════════════════════════
+async function fbAdd(tab, row) {
+  setSyncStatus('syncing', 'กำลังบันทึก...');
+  const { id, ...rest } = row;
+  const docRef = await addDoc(collection(db, tab), { ...rest, createdAt: serverTimestamp() });
+  return docRef.id;
+}
+
+async function fbUpdate(tab, id, fields) {
+  setSyncStatus('syncing', 'กำลังบันทึก...');
+  const { id: _id, createdAt, ...rest } = fields;
+  await updateDoc(doc(db, tab, id), rest);
+  setSyncStatus('ok', 'บันทึกแล้ว');
+}
+
+async function fbDelete(tab, id) {
+  await deleteDoc(doc(db, tab, id));
+}
+
+
+// ══════════════════════════════════════════════
+//  COLUMNS DEF
+// ══════════════════════════════════════════════
+const COLS_DOMESTIC = [
+  { key:'date',    label:'Date',                cls:'col-date',  type:'date' },
+  { key:'place',   label:'สถานที่โหลด',        cls:'col-place', type:'dropdown' },
+  { key:'cust',    label:'Customer / Brand',    cls:'col-cust',  type:'text' },
+  { key:'prod',    label:'Product Name',        cls:'col-prod',  type:'text' },
+  { key:'lot',     label:'Lot no.',             cls:'col-lot',   type:'text' },
+  { key:'batch',   label:'Batch no.',           cls:'col-batch', type:'text' },
+  { key:'problem', label:'ปัญหาที่พบ',         cls:'col-prob',  type:'text', align:'left' },
+  { key:'fix',     label:'การแก้ไขปัญหา',     cls:'col-fix',   type:'text', align:'left' },
+  { key:'note',    label:'หมายเหตุ',           cls:'col-note',  type:'text' },
+  { key:'photos',  label:'ภาพประกอบ (ถ้ามี)', cls:'col-photo', type:'photo' },
+];
+const COLS_EXPORT = [
+  { key:'date',    label:'Date',                cls:'col-date',  type:'date' },
+  { key:'place',   label:'สถานที่โหลด',        cls:'col-place', type:'dropdown' },
+  { key:'inv',     label:'Invoice no.',         cls:'col-inv',   type:'text' },
+  { key:'cust',    label:'Customer / Brand',    cls:'col-cust',  type:'text' },
+  { key:'prod',    label:'Product Name',        cls:'col-prod',  type:'text' },
+  { key:'lot',     label:'Lot no.',             cls:'col-lot',   type:'text' },
+  { key:'batch',   label:'Batch no.',           cls:'col-batch', type:'text' },
+  { key:'problem', label:'ปัญหาที่พบ',         cls:'col-prob',  type:'text', align:'left' },
+  { key:'fix',     label:'การแก้ไขปัญหา',     cls:'col-fix',   type:'text', align:'left' },
+  { key:'note',    label:'หมายเหตุ',           cls:'col-note',  type:'text' },
+  { key:'photos',  label:'ภาพประกอบ (ถ้ามี)', cls:'col-photo', type:'photo' },
+];
+const PLACE_OPTIONS = ['คลัง FG (KRS)', 'โกดังเช่า'];
+const MONTHS_TH  = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const DAYS_LABEL = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let currentTab = 'domestic';
+const data    = { domestic: [], export: [] };
+const filters = { domestic: {}, export: {} };
+const sortSt  = {
+  domestic: { key: 'date', dir: 'asc' },
+  export:   { key: 'date', dir: 'asc' }
+};
+
+// ซ่อน setup — กด 5 ครั้งติดกันเพื่อเปิด
+let setupTapCount = 0, setupTapTimer;
+window.handleSetupTap = function() {
+  setupTapCount++;
+  clearTimeout(setupTapTimer);
+  setupTapTimer = setTimeout(() => setupTapCount = 0, 2000);
+  if(setupTapCount >= 5) { setupTapCount = 0; showSetup(); }
+};
+let pendingAutoSave = {};
+
+// ══════════════════════════════════════════════
+//  SYNC STATUS
+// ══════════════════════════════════════════════
+function setSyncStatus(state, msg) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state==='syncing'?' syncing':state==='error'?' error':'');
+  lbl.textContent = msg;
+}
+function showLoading(pct) {
+  const bar = document.getElementById('loading-bar');
+  bar.style.width = pct + '%';
+  if(pct >= 100) setTimeout(() => bar.style.width = '0', 400);
+}
+
+// ══════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════
+window.switchTab = function(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', (i===0&&tab==='domestic')||(i===1&&tab==='export'));
+  });
+  closeAllPopups();
+  render();
+};
+
+// ══════════════════════════════════════════════
+//  ADD / DELETE
+// ══════════════════════════════════════════════
+function todayStr() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+
+window.addRow = async function() {
+  if(!db) { showToast('⚠️ ยังไม่ได้เชื่อมต่อ Firebase — กด ⚙️ เพื่อตั้งค่า'); return; }
+  snapshot();
+  const cols = currentTab==='domestic' ? COLS_DOMESTIC : COLS_EXPORT;
+  const row = { photos: [] };
+  cols.forEach(c => { if(c.type !== 'photo') row[c.key] = c.type==='date' ? todayStr() : ''; });
+
+  // Optimistic UI
+  const tmpId = '_tmp_' + Date.now();
+  data[currentTab].push({ ...row, id: tmpId });
+  renderBody();
+  setTimeout(() => {
+    const rows = document.querySelectorAll('#main-tbody tr');
+    if(rows.length) rows[rows.length-1].scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }, 50);
+
+  try {
+    await fbAdd(currentTab, row);
+    // onSnapshot จะ update data อัตโนมัติ แล้ว re-render
+    // ลบ tmp row ออก (snapshot จะเพิ่ม real row แทน)
+    data[currentTab] = data[currentTab].filter(r => r.id !== tmpId);
+    showToast('✅ เพิ่มแถวแล้ว');
+  } catch(e) {
+    data[currentTab] = data[currentTab].filter(r => r.id !== tmpId);
+    renderBody();
+    showToast('❌ เพิ่มแถวไม่สำเร็จ: ' + e.message);
+  }
+};
+
+window.deleteRow = async function(id) {
+  if(!confirm('ยืนยันการลบแถวนี้?')) return;
+  snapshot();
+  try {
+    await fbDelete(currentTab, id);
+    showToast('ลบแถวแล้ว');
+  } catch(e) {
+    showToast('❌ ลบไม่สำเร็จ');
+  }
+};
+
+// ══════════════════════════════════════════════
+//  SAVE (debounced)
+// ══════════════════════════════════════════════
+function scheduleRowSave(id) {
+  if(!db || id.startsWith('_tmp_')) return;
+  clearTimeout(pendingAutoSave[id]);
+  pendingAutoSave[id] = setTimeout(() => saveRow(id), 1200);
+}
+
+async function saveRow(id) {
+  const row = data[currentTab].find(r => r.id === id);
+  if(!row || !db) return;
+  try { await fbUpdate(currentTab, id, row); } catch(e) { showToast('❌ บันทึกไม่สำเร็จ'); }
+}
+
+// ══════════════════════════════════════════════
+//  PHOTO — resize + upload to Storage
+// ══════════════════════════════════════════════
+const MAX_PX   = 1200;
+const MAX_BYTE = 200000;
+
+function resizeImage(file) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width: w, height: h } = img;
+      if(w > MAX_PX || h > MAX_PX) {
+        if(w >= h) { h = Math.round(h * MAX_PX / w); w = MAX_PX; }
+        else       { w = Math.round(w * MAX_PX / h); h = MAX_PX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      let quality = 0.85;
+      let dataUrl = canvas.toDataURL('image/jpeg', quality);
+      while(dataUrl.length * 0.75 > MAX_BYTE && quality > 0.3) {
+        quality -= 0.1;
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+      }
+      resolve(dataUrl);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+window.handlePhotoUpload = async function(event, rowId) {
+  const row = data[currentTab].find(r => r.id === rowId);
+  if(!row || !db) return;
+  const files = Array.from(event.target.files);
+  showToast(`⏳ กำลัง resize ${files.length} รูป...`);
+  showLoading(20);
+
+  const dataUrls = await Promise.all(files.map(f => resizeImage(f)));
+  dataUrls.forEach(dataUrl => {
+    if(dataUrl) { row.photos = row.photos || []; row.photos.push(dataUrl); }
+  });
+
+  showLoading(70);
+  await fbUpdate(currentTab, rowId, row);
+  showLoading(100);
+  showToast('✅ บันทึกรูปแล้ว');
+  event.target.value = '';
+};
+
+// ══════════════════════════════════════════════
+//  FILTER
+// ══════════════════════════════════════════════
+let fpState = { key: null, selected: new Set() };
+
+window.openFilterPanel = function(e, key, label) {
+  e.stopPropagation(); closeAllPopups(); fpState.key = key;
+  fpState.selected = new Set(filters[currentTab][key] ? [filters[currentTab][key]] : []);
+
+  document.getElementById('filter-panel-title').textContent = `ค้นหา: ${label}`;
+  const inp = document.getElementById('filter-panel-input');
+  inp.value = '';
+
+  // Build unique value list from current data
+  buildFilterValues(key, '');
+
+  // Filter as you type
+  inp.oninput = () => buildFilterValues(key, inp.value.toLowerCase());
+
+  const panel = document.getElementById('filter-panel');
+  positionPopup(panel, e.currentTarget);
+  panel.classList.add('visible'); inp.focus();
+  setTimeout(() => document.addEventListener('click', fpOutside), 10);
+};
+
+function buildFilterValues(key, search) {
+  const allVals = data[currentTab]
+    .map(r => Array.isArray(r[key]) ? '' : String(r[key]||'').trim())
+    .filter(v => v && (!search || v.toLowerCase().includes(search)));
+  const unique = [...new Set(allVals)].sort((a,b) => a.localeCompare(b,'th'));
+  const el = document.getElementById('filter-values');
+  if(!unique.length) { el.innerHTML = `<div style="padding:8px 10px;font-size:12px;color:var(--text-muted);">ไม่มีข้อมูล</div>`; return; }
+  el.innerHTML = unique.map(v => {
+    const checked = fpState.selected.has(v) ? 'checked' : '';
+    const safe = v.replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    return `<label class="filter-value-item${fpState.selected.has(v)?' selected':''}">
+      <input type="checkbox" ${checked} onchange="fpToggle('${safe}',this)">
+      <span>${safe}</span>
+    </label>`;
+  }).join('');
+}
+
+window.fpToggle = function(val, cb) {
+  if(cb.checked) fpState.selected.add(val);
+  else fpState.selected.delete(val);
+  // update selected style
+  cb.closest('.filter-value-item').classList.toggle('selected', cb.checked);
+};
+
+window.fpApply = () => {
+  const textVal = document.getElementById('filter-panel-input').value.trim();
+  // ถ้ามี checkbox ที่เลือก ใช้ค่าแรก; ถ้าไม่มีใช้ text
+  const val = fpState.selected.size > 0 ? [...fpState.selected][0] : textVal;
+  // ถ้าเลือกหลายค่า เก็บทั้งหมด
+  if(fpState.selected.size > 1) {
+    filters[currentTab][fpState.key] = { multi: [...fpState.selected] };
+  } else {
+    setFilter(fpState.key, val);
+  }
+  updateFilterBadge(); closeFilterPanel(); render();
+};
+window.fpClear = () => { fpState.selected.clear(); setFilter(fpState.key,''); closeFilterPanel(); render(); };
+function closeFilterPanel() { document.getElementById('filter-panel').classList.remove('visible'); document.removeEventListener('click', fpOutside); }
+function fpOutside(e) { const p=document.getElementById('filter-panel'); if(!p.contains(e.target)) closeFilterPanel(); }
+function setFilter(key, val) { if(val) filters[currentTab][key]=typeof val==='string'?val.toLowerCase():val; else delete filters[currentTab][key]; updateFilterBadge(); }
+window.clearAllFilters = () => { filters[currentTab]={}; updateFilterBadge(); render(); };
+function updateFilterBadge() {
+  const keys = Object.keys(filters[currentTab]);
+  const badge = document.getElementById('filter-badge');
+  if(!keys.length) { badge.style.display='none'; return; }
+  badge.style.display='flex';
+  document.getElementById('filter-badge-text').textContent = `กำลัง filter ${keys.length} column`;
+}
+
+// ══════════════════════════════════════════════
+//  SORT
+// ══════════════════════════════════════════════
+window.setSort = function(key) {
+  const s = sortSt[currentTab];
+  if(s.key===key) { s.dir = s.dir==='asc'?'desc':s.dir==='desc'?null:'asc'; if(!s.dir) s.key=null; }
+  else { s.key=key; s.dir='asc'; }
+  renderSortBar(); renderBody();
+};
+window.clearSort = () => { sortSt[currentTab]={key:null,dir:null}; renderSortBar(); renderBody(); };
+function renderSortBar() {
+  const s = sortSt[currentTab];
+  const bar = document.getElementById('sort-bar');
+  if(!bar) return;
+  const cols = (currentTab==='domestic'?COLS_DOMESTIC:COLS_EXPORT).filter(c=>c.type!=='photo');
+  bar.innerHTML = `<span class="sort-label">เรียงตาม:</span>` +
+    cols.map(c => {
+      const act = s.key===c.key;
+      return `<button class="sort-btn${act?' active':''}" onclick="setSort('${c.key}')">${c.label}${act?(s.dir==='asc'?' ↑':' ↓'):''}</button>`;
+    }).join('') + (s.key ? `<button class="sort-clear" onclick="clearSort()">✕ ล้าง</button>` : '');
+}
+function getDisplayData() {
+  const f = filters[currentTab];
+  let rows = data[currentTab].filter(row => {
+    for(const [k,v] of Object.entries(f)) {
+      const cell = Array.isArray(row[k]) ? '' : String(row[k]||'').toLowerCase();
+      if(typeof v === 'object' && v.multi) {
+        if(!v.multi.some(m => cell.includes(m.toLowerCase()))) return false;
+      } else {
+        if(!cell.includes(String(v).toLowerCase())) return false;
+      }
+    }
+    return true;
+  });
+  const s = sortSt[currentTab];
+  if(s.key && s.dir) {
+    rows = [...rows].sort((a,b) => {
+      let av = a[s.key]||'', bv = b[s.key]||'';
+      if(s.key==='date') { const t=v=>{const p=v.split('/');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:'';}; av=t(av);bv=t(bv); }
+      const c = String(av).localeCompare(String(bv),'th',{numeric:true});
+      return s.dir==='asc'?c:-c;
+    });
+  }
+  return rows;
+}
+
+// ══════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════
+function render() {
+  const cols = currentTab==='domestic' ? COLS_DOMESTIC : COLS_EXPORT;
+  let html = `<table><thead><tr><th class="col-no" style="background:var(--header-bg);"><div class="th-inner"><span class="th-label" style="color:var(--text-muted);font-weight:400;">#</span></div></th>`;
+  cols.forEach(col => {
+    const active = !!filters[currentTab][col.key];
+    html += `<th class="${col.cls}"><div class="th-inner"><span class="th-label">${col.label}</span><button class="th-filter-btn${active?' active':''}" onclick="openFilterPanel(event,'${col.key}','${col.label}')">▼</button></div></th>`;
+  });
+  html += `<th class="col-act" style="background:var(--header-bg);"><div class="th-inner"></div></th></tr></thead><tbody id="main-tbody"></tbody></table>`;
+  document.getElementById('table-container').innerHTML = html;
+  renderSortBar();
+  renderBody();
+}
+
+function renderBody() {
+  const tbody = document.getElementById('main-tbody');
+  if(!tbody) return;
+  const cols = currentTab==='domestic' ? COLS_DOMESTIC : COLS_EXPORT;
+  const rows = getDisplayData();
+  document.getElementById('row-count').textContent = `${rows.length} / ${data[currentTab].length} รายการ`;
+  if(!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${cols.length+2}" class="no-data">ไม่มีข้อมูล — กด <b>เพิ่มแถว</b> เพื่อเริ่มต้น</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((row,idx) =>
+    `<tr data-id="${row.id}">
+      <td class="col-no" style="text-align:center;vertical-align:top;padding:8px 4px;color:var(--text-muted);font-size:12px;">${idx+1}</td>
+      ${cols.map(col => buildCell(row, col)).join('')}
+      <td class="col-act" style="vertical-align:top;text-align:center;">
+        <button class="btn-del-row" onclick="event.stopPropagation();deleteRow('${row.id}')" title="ลบแถว">×</button>
+      </td>
+    </tr>`
+  ).join('');
+  rows.forEach(row => {
+    if(row.photos && row.photos.length) {
+      const el = document.getElementById(`thumbs-${row.id}`);
+      if(el) renderThumbs(row, el);
+    }
+  });
+
+  // auto-grow all textareas to fit content on initial render
+  requestAnimationFrame(() => {
+    document.querySelectorAll('#main-tbody .text-cell').forEach(ta => {
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+    });
+  });
+}
+
+function buildCell(row, col) {
+  const isLeft = col.align==='left' || col.key==='note';
+  const left = isLeft ? 'td-left' : '';
+  if(col.type==='date') return `<td class="${col.cls}" style="cursor:pointer;vertical-align:top;text-align:center;" onclick="openDatePicker(event,'${row.id}','${col.key}')"><span class="date-display${row[col.key]?'':' empty'}">${row[col.key]||'DD/MM/YYYY'}</span></td>`;
+  if(col.type==='dropdown') return `<td class="${col.cls}" style="cursor:pointer;vertical-align:top;" onclick="openDropdown(event,'${row.id}','${col.key}')"><div class="dropdown-display${row[col.key]?'':' empty'}">${row[col.key]||'เลือก...'}<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5H7z"/></svg></div></td>`;
+  if(col.type==='photo') return `<td class="${col.cls}" style="vertical-align:top;"><div class="photo-cell"><div class="photo-thumbs" id="thumbs-${row.id}"></div><label class="photo-upload-btn">+ รูป<input class="photo-upload-input" type="file" accept="image/*" multiple onchange="handlePhotoUpload(event,'${row.id}')"></label></div></td>`;
+  const align = isLeft ? 'left' : 'center';
+  const val = (row[col.key]||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `<td class="${col.cls} ${left}" style="vertical-align:top;padding:0;">
+    <textarea class="text-cell" style="text-align:${align};" data-id="${row.id}" data-key="${col.key}" oninput="handleTextInput(this)" onblur="saveText(this)">${val}</textarea>
+  </td>`;
+}
+
+function renderThumbs(row, el) {
+  el.innerHTML = '';
+  (row.photos||[]).forEach((src,i) => {
+    const wrap = document.createElement('div'); wrap.className = 'photo-thumb-wrap';
+    const img  = document.createElement('img'); img.src = src;
+    img.onclick = e => { e.stopPropagation(); openLightbox(src); };
+    const del = document.createElement('button'); del.className = 'photo-thumb-del'; del.innerHTML = '×';
+    del.onclick = async e => {
+      e.stopPropagation();
+      if(!confirm('ยืนยันการลบรูปภาพนี้?')) return;
+      row.photos.splice(i, 1);
+      await fbUpdate(currentTab, row.id, row);
+    };
+    wrap.appendChild(img); wrap.appendChild(del); el.appendChild(wrap);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  TEXT CELL
+// ══════════════════════════════════════════════
+window.handleTextInput = function(el) {
+  // auto-grow: reset then expand to content height
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+  // autocomplete for cust, prod columns
+  const key = el.dataset.key;
+  if(key === 'cust' || key === 'prod' || key === 'inv') {
+    showAutocomplete(el, key);
+  } else {
+    hideAutocomplete();
+  }
+};
+window.saveText = function(el) {
+  const id = el.dataset.id, key = el.dataset.key;
+  const row = data[currentTab].find(r => r.id === id);
+  if(row && row[key] !== el.value) { snapshot(); row[key] = el.value; scheduleRowSave(id); }
+  setTimeout(hideAutocomplete, 200);
+};
+
+// ══════════════════════════════════════════════
+//  AUTOCOMPLETE
+// ══════════════════════════════════════════════
+let acActive = false;
+function showAutocomplete(el, key) {
+  const val = el.value.trim().toLowerCase();
+  if(!val) { hideAutocomplete(); return; }
+  const suggestions = [...new Set(
+    data[currentTab]
+      .map(r => String(r[key]||'').trim())
+      .filter(v => v && v.toLowerCase().includes(val) && v.toLowerCase() !== val)
+  )].slice(0, 8);
+  if(!suggestions.length) { hideAutocomplete(); return; }
+  const list = document.getElementById('autocomplete-list');
+  const rect = el.getBoundingClientRect();
+  list.style.top = (rect.bottom + window.scrollY + 2) + 'px';
+  list.style.left = rect.left + 'px';
+  list.style.minWidth = rect.width + 'px';
+  list.innerHTML = suggestions.map(s => {
+    const hi = s.replace(new RegExp(`(${val})`, 'gi'), '<mark>$1</mark>');
+    return `<div class="autocomplete-item" onmousedown="pickAutocomplete(event,'${s.replace(/'/g,"\\'")}','${el.dataset.id}','${key}')">${hi}</div>`;
+  }).join('');
+  list.classList.add('visible');
+  acActive = true;
+}
+function hideAutocomplete() {
+  document.getElementById('autocomplete-list').classList.remove('visible');
+  acActive = false;
+}
+window.pickAutocomplete = function(e, val, id, key) {
+  e.preventDefault();
+  const row = data[currentTab].find(r => r.id === id);
+  if(row) { row[key] = val; scheduleRowSave(id); }
+  // update textarea
+  const ta = document.querySelector(`textarea[data-id="${id}"][data-key="${key}"]`);
+  if(ta) { ta.value = val; ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; }
+  hideAutocomplete();
+};
+
+// ══════════════════════════════════════════════
+//  DATE PICKER
+// ══════════════════════════════════════════════
+let dpState = { rowId:null, key:null, year:0, month:0 };
+window.openDatePicker = function(e, rowId, key) {
+  e.stopPropagation(); closeAllPopups();
+  dpState.rowId=rowId; dpState.key=key;
+  const row=data[currentTab].find(r=>r.id===rowId);
+  let d=new Date();
+  if(row&&row[key]){const p=row[key].split('/');if(p.length===3)d=new Date(+p[2],+p[1]-1,+p[0]);}
+  dpState.year=d.getFullYear(); dpState.month=d.getMonth();
+  buildDpSelects(); buildDpGrid();
+  const popup=document.getElementById('date-picker-popup');
+  popup.style.visibility='hidden'; popup.classList.add('visible');
+  positionPopup(popup, e.currentTarget); popup.style.visibility='visible';
+  document.getElementById('dp-manual').value=row&&row[key]?row[key]:'';
+  setTimeout(()=>document.addEventListener('click', dpOutside),10);
+};
+function buildDpSelects() {
+  const ms=document.getElementById('dp-month');
+  ms.innerHTML=MONTHS_TH.map((m,i)=>`<option value="${i}"${i===dpState.month?' selected':''}>${m}</option>`).join('');
+  ms.onchange=()=>{dpState.month=+ms.value;buildDpGrid();};
+  const ys=document.getElementById('dp-year');
+  const cy=new Date().getFullYear(); let o='';
+  for(let y=cy-5;y<=cy+2;y++) o+=`<option value="${y}"${y===dpState.year?' selected':''}>${y}</option>`;
+  ys.innerHTML=o; ys.onchange=()=>{dpState.year=+ys.value;buildDpGrid();};
+}
+function buildDpGrid() {
+  const grid=document.getElementById('dp-grid');
+  const row=data[currentTab].find(r=>r.id===dpState.rowId);
+  let sel=null;
+  if(row&&row[dpState.key]){const p=row[dpState.key].split('/');if(p.length===3&&+p[2]===dpState.year&&+p[1]-1===dpState.month)sel=+p[0];}
+  const today=new Date(),td=today.getDate(),tm=today.getMonth(),ty=today.getFullYear();
+  const first=new Date(dpState.year,dpState.month,1).getDay();
+  const days=new Date(dpState.year,dpState.month+1,0).getDate();
+  let html=DAYS_LABEL.map(l=>`<div class="dp-day-label">${l}</div>`).join('');
+  for(let i=0;i<first;i++) html+=`<div class="dp-day empty"></div>`;
+  for(let d=1;d<=days;d++) html+=`<div class="dp-day${d===td&&dpState.month===tm&&dpState.year===ty?' today':''}${d===sel?' selected':''}" onclick="dpSelectDay(${d})">${d}</div>`;
+  grid.innerHTML=html;
+}
+window.dpSelectDay = d => { const v=`${String(d).padStart(2,'0')}/${String(dpState.month+1).padStart(2,'0')}/${dpState.year}`; setDateValue(v); buildDpGrid(); document.getElementById('dp-manual').value=v; };
+window.dpConfirm = () => { const v=document.getElementById('dp-manual').value.trim(); if(v){if(!/^\d{2}\/\d{2}\/\d{4}$/.test(v)){alert('รูปแบบวันที่ไม่ถูกต้อง');return;}setDateValue(v);} closeDatePicker(); };
+function setDateValue(val) { const row=data[currentTab].find(r=>r.id===dpState.rowId); if(row){ snapshot(); row[dpState.key]=val;renderBody();scheduleRowSave(dpState.rowId);} }
+function closeDatePicker() { document.getElementById('date-picker-popup').classList.remove('visible'); document.removeEventListener('click', dpOutside); }
+function dpOutside(e) { if(!document.getElementById('date-picker-popup').contains(e.target)) closeDatePicker(); }
+
+// ══════════════════════════════════════════════
+//  DROPDOWN
+// ══════════════════════════════════════════════
+let ddState = { rowId:null, key:null };
+window.openDropdown = function(e, rowId, key) {
+  e.stopPropagation(); closeAllPopups();
+  ddState.rowId=rowId; ddState.key=key;
+  const row=data[currentTab].find(r=>r.id===rowId);
+  const cur=row?row[key]:'';
+  document.getElementById('dropdown-options').innerHTML =
+    PLACE_OPTIONS.map(o=>`<div class="dropdown-option${cur===o?' selected':''}" onclick="ddSelect('${o}')">${o}</div>`).join('') +
+    `<div class="dropdown-option custom-option" onclick="ddShowCustom()">+ เพิ่มรายการอื่น...</div>`;
+  document.getElementById('dropdown-custom-area').classList.remove('visible');
+  document.getElementById('dropdown-custom-field').value='';
+  const popup=document.getElementById('dropdown-popup');
+  popup.style.visibility='hidden'; popup.classList.add('visible');
+  positionPopup(popup, e.currentTarget); popup.style.visibility='visible';
+  setTimeout(()=>document.addEventListener('click', ddOutside),10);
+};
+window.ddSelect = val => { const row=data[currentTab].find(r=>r.id===ddState.rowId); if(row){ snapshot(); row[ddState.key]=val;renderBody();scheduleRowSave(ddState.rowId);} closeDropdown(); };
+window.ddShowCustom = () => { document.getElementById('dropdown-custom-area').classList.add('visible'); document.getElementById('dropdown-custom-field').focus(); };
+window.ddCustomConfirm = () => { const v=document.getElementById('dropdown-custom-field').value.trim(); if(v) ddSelect(v); };
+function closeDropdown() { document.getElementById('dropdown-popup').classList.remove('visible'); document.removeEventListener('click', ddOutside); }
+function ddOutside(e) { if(!document.getElementById('dropdown-popup').contains(e.target)) closeDropdown(); }
+
+// ══════════════════════════════════════════════
+//  UNDO / REDO
+// ══════════════════════════════════════════════
+const MAX_HISTORY = 50;
+const history = { domestic: [], export: [] };
+const future  = { domestic: [], export: [] };
+
+function snapshot() {
+  const copy = JSON.parse(JSON.stringify(data[currentTab]));
+  history[currentTab].push(copy);
+  if(history[currentTab].length > MAX_HISTORY) history[currentTab].shift();
+  future[currentTab] = []; // clear redo stack
+}
+
+window.undo = function() {
+  if(!history[currentTab].length) { showToast('ไม่มีการกระทำที่ย้อนได้'); return; }
+  future[currentTab].push(JSON.parse(JSON.stringify(data[currentTab])));
+  data[currentTab] = history[currentTab].pop();
+  renderBody();
+  showToast('↩ Undo');
+};
+
+window.redo = function() {
+  if(!future[currentTab].length) { showToast('ไม่มีการกระทำที่ทำซ้ำได้'); return; }
+  history[currentTab].push(JSON.parse(JSON.stringify(data[currentTab])));
+  data[currentTab] = future[currentTab].pop();
+  renderBody();
+  showToast('↪ Redo');
+};
+
+// Keyboard shortcut Ctrl+Z / Ctrl+Y
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+  if((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+});
+
+// ══════════════════════════════════════════════
+//  POPUP POSITION — smart clamp within viewport
+// ══════════════════════════════════════════════
+function positionPopup(popup, trigger) {
+  const rect = trigger.getBoundingClientRect();
+  const ph = popup.offsetHeight || 200;
+  const pw = popup.offsetWidth  || 220;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceAbove = rect.top;
+
+  // vertical: prefer below, flip above if not enough space
+  let top;
+  if(spaceBelow >= ph + 8) {
+    top = rect.bottom + window.scrollY + 4;
+  } else if(spaceAbove >= ph + 8) {
+    top = rect.top + window.scrollY - ph - 4;
+  } else {
+    // not enough space either side — anchor to bottom of viewport
+    top = window.scrollY + window.innerHeight - ph - 8;
+  }
+
+  // horizontal: clamp so popup doesn't go off-screen right
+  let left = rect.left + window.scrollX;
+  if(left + pw > window.scrollX + window.innerWidth - 8) {
+    left = window.scrollX + window.innerWidth - pw - 8;
+  }
+  left = Math.max(window.scrollX + 4, left);
+
+  popup.style.top  = top  + 'px';
+  popup.style.left = left + 'px';
+}
+
+// ══════════════════════════════════════════════
+//  LIGHTBOX
+// ══════════════════════════════════════════════
+window.openLightbox  = src => { document.getElementById('lightbox-img').src=src; document.getElementById('lightbox').classList.add('visible'); };
+window.closeLightbox = e  => { if(!e||e.target===document.getElementById('lightbox')||e.target===document.querySelector('.lightbox-close')) document.getElementById('lightbox').classList.remove('visible'); };
+
+// ══════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+function closeAllPopups() { closeDatePicker(); closeDropdown(); closeFilterPanel(); hideAutocomplete(); }
+
+document.getElementById('filter-panel-input').addEventListener('keydown', e=>{
+  if(e.key==='Enter') fpApply();
+  if(e.key==='Escape') closeFilterPanel();
+});
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+const savedCfg = loadCfg();
+if(savedCfg && savedCfg.apiKey) {
+  initFirebase(savedCfg);
+} else {
+  setSyncStatus('error', 'ยังไม่ได้ตั้งค่า');
+  document.getElementById('setup-screen').classList.add('visible');
+}
+render();
+</script>
+</body>
+</html>
