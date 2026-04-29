@@ -209,32 +209,6 @@
 
 <div class="loading-bar" id="loading-bar"></div>
 
-<!-- Setup Screen -->
-<div class="setup-screen" id="setup-screen">
-  <div class="setup-box">
-    <h2>🔥 เชื่อมต่อ Firebase</h2>
-    <p>กรอก Firebase config จาก Project ของคุณ — ทำครั้งเดียว ใช้ได้ทุกเครื่อง</p>
-    <div class="setup-steps">
-      <b>วิธีขอ Config (ทำครั้งเดียว):</b><br>
-      1. ไปที่ <code>console.firebase.google.com</code> → สร้าง Project ใหม่<br>
-      2. กด <b>Add app</b> → เลือก <b>Web (&lt;/&gt;)</b> → ตั้งชื่อ<br>
-      3. Copy ค่าใน <code>firebaseConfig</code> มากรอกด้านล่าง<br>
-      4. ไปที่ <b>Firestore Database</b> → <b>Create database</b> → เลือก <b>Start in test mode</b>
-    </div>
-    <label class="setup-field-label">API Key</label>
-    <input class="setup-input" id="cfg-apiKey" placeholder="AIzaSy...">
-    <label class="setup-field-label">Auth Domain</label>
-    <input class="setup-input" id="cfg-authDomain" placeholder="your-project.firebaseapp.com">
-    <label class="setup-field-label">Project ID</label>
-    <input class="setup-input" id="cfg-projectId" placeholder="your-project-id">
-    <label class="setup-field-label">Messaging Sender ID</label>
-    <input class="setup-input" id="cfg-messagingSenderId" placeholder="123456789">
-    <label class="setup-field-label">App ID</label>
-    <input class="setup-input" id="cfg-appId" placeholder="1:123456789:web:abc123">
-    <button class="setup-btn" onclick="saveFirebaseConfig()">บันทึกและเชื่อมต่อ</button>
-  </div>
-</div>
-
 <!-- Main App -->
 <div class="topbar">
   <div class="topbar-left">
@@ -248,8 +222,6 @@
   <div class="topbar-right">
     <div class="sync-dot" id="sync-dot"></div>
     <div class="sync-label" id="sync-label">กำลังเชื่อมต่อ...</div>
-    <!-- ซ่อน setup button — กด title 5 ครั้งเพื่อเปิด -->
-    <span onclick="handleSetupTap()" style="cursor:default;padding:4px 8px;color:transparent;font-size:18px;user-select:none;" title="">⚙️</span>
   </div>
 </div>
 
@@ -319,35 +291,14 @@ import { getFirestore, collection, doc, addDoc,
          serverTimestamp, query, orderBy }        from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // ══════════════════════════════════════════════
-//  CONFIG — บันทึกใน localStorage (ทำครั้งเดียว)
+//  FIREBASE CONFIG — ฝังไว้ในโค้ด ไม่ต้องกรอกทุกเครื่อง
 // ══════════════════════════════════════════════
-const CFG_KEY = 'firebase_cfg_v1';
-
-function loadCfg() {
-  try { return JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); } catch { return null; }
-}
-
-window.saveFirebaseConfig = function() {
-  const cfg = {
-    apiKey:            document.getElementById('cfg-apiKey').value.trim(),
-    authDomain:        document.getElementById('cfg-authDomain').value.trim(),
-    projectId:         document.getElementById('cfg-projectId').value.trim(),
-    messagingSenderId: document.getElementById('cfg-messagingSenderId').value.trim(),
-    appId:             document.getElementById('cfg-appId').value.trim(),
-  };
-  if(!cfg.apiKey || !cfg.projectId) { showToast('กรุณากรอก API Key และ Project ID'); return; }
-  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
-  document.getElementById('setup-screen').classList.remove('visible');
-  initFirebase(cfg);
-};
-
-window.showSetup = function() {
-  const cfg = loadCfg() || {};
-  ['apiKey','authDomain','projectId','messagingSenderId','appId'].forEach(k => {
-    const el = document.getElementById('cfg-' + k);
-    if(el) el.value = cfg[k] || '';
-  });
-  document.getElementById('setup-screen').classList.add('visible');
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyAtdEdTg1gedZ-gPKaZRUeySKL_c6dYTCg",
+  authDomain:        "loading-report-7b1fb.firebaseapp.com",
+  projectId:         "loading-report-7b1fb",
+  messagingSenderId: "88338091431",
+  appId:             "1:88338091431:web:6df6fb406656c8570b7a82"
 };
 
 // ══════════════════════════════════════════════
@@ -1030,13 +981,10 @@ document.getElementById('filter-panel-input').addEventListener('keydown', e=>{
 // ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
-const savedCfg = loadCfg();
-if(savedCfg && savedCfg.apiKey) {
-  initFirebase(savedCfg);
-} else {
-  setSyncStatus('error', 'ยังไม่ได้ตั้งค่า');
-  document.getElementById('setup-screen').classList.add('visible');
-}
+// ══════════════════════════════════════════════
+//  INIT — เชื่อมต่อ Firebase อัตโนมัติ
+// ══════════════════════════════════════════════
+initFirebase(FIREBASE_CONFIG);
 render();
 </script>
 </body>
